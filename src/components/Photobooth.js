@@ -136,13 +136,15 @@ export default function PhotoBooth() {
     const addPhoto = img => {
         if (photoCount >= 4) return;
 
-        const scale = SLOT_WIDTH / img.width;
+        const scale = Math.max(SLOT_WIDTH / img.width, SLOT_HEIGHT / img.height);
+        const drawW = img.width * scale;
         const drawH = img.height * scale;
-        const offsetY = drawH > SLOT_HEIGHT ? (SLOT_HEIGHT - drawH) / 2 : 0;
+        const offsetX = (SLOT_WIDTH - drawW) / 2;
+        const offsetY = (SLOT_HEIGHT - drawH) / 2;
 
         setPhotos(p => [
             ...p,
-            { img, slotIndex: photoCount, scale, offsetX: 0, offsetY }
+            { img, slotIndex: photoCount, scale, offsetX, offsetY }
         ]);
 
         setCanTakePhoto(true);
@@ -322,14 +324,32 @@ export default function PhotoBooth() {
 
     //download
 
-    const downloadPhoto = () => {
+    const downloadPhoto = async () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
+        const imageUrl = canvas.toDataURL("image/png");
+        if (navigator.share && navigator.canShare && typeof File !== "undefined") {
+            const base64 = imageUrl.split(",")[1];
+            const bytes = Uint8Array.from(atob(base64), character => character.charCodeAt(0));
+            const file = new File([bytes], "photo-homie.png", { type: "image/png" });
+
+            if (navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ files: [file], title: "Homie Photobooth" });
+                    return;
+                } catch (error) {
+                    if (error.name === "AbortError") return;
+                }
+            }
+        }
+
         const a = document.createElement("a");
-        a.href = canvas.toDataURL("image/png");
+        a.href = imageUrl;
         a.download = "photo-homie.png";
+        document.body.appendChild(a);
         a.click();
+        a.remove();
     };
 
     return (
