@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
+import "./Photobooth.css";
 
 const frameOptions = [
     "/assets/frames/heart-frame.png",
@@ -18,7 +19,11 @@ const stickerOptions = [
 ];
 
 // Request a 953x599 stream from the webcam so screenshots match the frame slots.
-const videoConstraints = { width: 953, height: 599 };
+const videoConstraints = {
+    width: { ideal: 953 },
+    height: { ideal: 599 },
+    facingMode: "user"
+};
 const SLOT_WIDTH = 953;
 const SLOT_HEIGHT = 599;
 
@@ -212,7 +217,8 @@ export default function PhotoBooth() {
     };
 
     // drag photos
-    const handleMouseDown = e => {
+    const handlePointerDown = e => {
+        e.currentTarget.setPointerCapture(e.pointerId);
         const { x, y } = getCoords(e);
         if (mode === "photo") {
             for (let i = photos.length - 1; i >= 0; i--) {
@@ -251,7 +257,7 @@ export default function PhotoBooth() {
         }
     };
 
-    const handleMouseMove = e => {
+    const handlePointerMove = e => {
         const {x,y} = getCoords(e);
 
         if (draggingPhoto !== null && mode === "photo") {
@@ -284,7 +290,7 @@ export default function PhotoBooth() {
         }
     };
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
         setDraggingPhoto(null);
         setDraggingSticker(null);
     };
@@ -327,9 +333,9 @@ export default function PhotoBooth() {
     };
 
     return (
-        <div style={centerCol}>
+        <div className="photobooth-shell" style={centerCol}>
             {/* top bar with back btn and text */}
-            <div style={topBar}>
+            <div className="photobooth-topbar" style={topBar}>
                 {selectedFrame && (
                     <button
                         style={{
@@ -357,9 +363,9 @@ export default function PhotoBooth() {
 
                 </h1>
             </div>
-            <div style={mainContent} >
+            <div className="photobooth-content" style={mainContent} >
                 {!selectedFrame ? (
-                    <div style={{ display: "flex", gap: 24 }}>
+                    <div className="frame-picker" style={{ display: "flex", gap: 24 }}>
                         {frameOptions.map((src) => {
                             const isSelected = selectedFrame === src;
 
@@ -390,11 +396,11 @@ export default function PhotoBooth() {
                         })}
                     </div>
                 ) : (
-                    <div style={row}>
-                        <div>
+                    <div className="photobooth-layout" style={row}>
+                        <div className="photobooth-controls">
                             {mode === "photo" && (
                                 <>
-                                    <div style= {{position: "relative", width: 400 }}>
+                                    <div className="camera-preview" style={{ position: "relative", width: 400 }}>
                                         {/* Webcam */}
                                         <Webcam
                                             audio={false}
@@ -436,7 +442,7 @@ export default function PhotoBooth() {
                                     </div>
 
                                     {/* Buttons */}
-                                    <div style = {{marginTop: 16, display: "flex", gap:12}}>
+                                    <div className="photo-actions" style={{ marginTop: 16, display: "flex", gap: 12 }}>
                                         {canTakePhoto && (
                                             <>
                                                 <button style={buttonStyle} onClick={capturePhoto}>
@@ -471,15 +477,30 @@ export default function PhotoBooth() {
                             )}
 
                             {mode === "decorate" && (
-                                stickerOptions.map((src) => (
-                                    <img
-                                        key={src}
-                                        src={src}
-                                        alt="sticker"
-                                        onClick={() => addSticker(src)}
-                                        style={{ width: 50, cursor: "pointer"}}
-                                    />
-                                ))
+                                <div className="sticker-picker">
+                                    {stickerOptions.map((src) => (
+                                        <img
+                                            key={src}
+                                            src={src}
+                                            alt="sticker"
+                                            onClick={() => addSticker(src)}
+                                            className="sticker-option"
+                                            style={{ width: 50, cursor: "pointer"}}
+                                        />
+                                    ))}
+                                    <button
+                                        type="button"
+                                        className="mobile-remove-sticker"
+                                        disabled={selectedSticker === null}
+                                        onClick={() => {
+                                            if (selectedSticker === null) return;
+                                            setStickers(current => current.filter((_, i) => i !== selectedSticker));
+                                            setSelectedSticker(null);
+                                        }}
+                                    >
+                                        Remove selected
+                                    </button>
+                                </div>
                             )
                             }
                         </div>
@@ -487,15 +508,17 @@ export default function PhotoBooth() {
                         {/* Display frame */}
                             <div>
                                 <canvas ref={canvasRef}
+                                className="photo-canvas"
                                 style={{
                                     width: 200,
                                     height: 500,
                                     borderRadius: 16,
                                     boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
                                 }}
-                                onMouseDown={handleMouseDown}
-                                onMouseMove={handleMouseMove}
-                                onMouseUp={handleMouseUp}
+                                onPointerDown={handlePointerDown}
+                                onPointerMove={handlePointerMove}
+                                onPointerUp={handlePointerUp}
+                                onPointerCancel={handlePointerUp}
                                 />
 
                                 {mode === "decorate" && (

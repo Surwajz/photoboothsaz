@@ -12,7 +12,7 @@ function App() {
       flexDirection: "column",
       alignItems: "center"
     }}>
-      <div style = {{
+      <div className="app-header" style = {{
         width: "100%",
         maxWidth: 1200,
         display: "flex",
