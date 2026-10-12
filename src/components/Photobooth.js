@@ -6,29 +6,34 @@ const frameOptions = [
     "/assets/frames/heart-frame-2.png",
     "/assets/frames/heart-frame-3.png",
     "/assets/frames/heart-frame-4.png",
+    "/assets/frames/heart-frame-5.png",
+    "/assets/frames/heart-frame-6.png",
 ];
 
 const stickerOptions = [
     "/assets/stickers/leaf.png",
-    "/assets/stickers/sparkles.png"
+    "/assets/stickers/sparkles.png",
+    "/assets/stickers/star.png",
+    "/assets/stickers/puppy.png",
 ];
 
-const videoConstraints = { width: 953, height: 599, facingMode: "user" };
+// Request a 953x599 stream from the webcam so screenshots match the frame slots.
+const videoConstraints = { width: 953, height: 599 };
 const SLOT_WIDTH = 953;
 const SLOT_HEIGHT = 599;
 
+// Each photo slot inside the assembled frame (frame designed at 1200 x 3000).
+const slots = [
+    { x: 123, y: 78 },
+    { x: 123, y: 697 },
+    { x: 123, y: 1286 },
+    { x: 123, y: 1885 }
+];
 
 export default function PhotoBooth() {
     const webcamRef = useRef(null);
     const canvasRef = useRef(null);
     const frameImgRef = useRef(null);
-
-    const slots = [
-        { x: 123, y: 78 },
-        { x: 123, y: 697 },
-        { x: 123, y: 1286 },
-        { x: 123, y: 1885 }
-    ];
 
     const [selectedFrame, setSelectedFrame] = useState(null);
     const [mode, setMode] = useState("photo");
@@ -43,25 +48,26 @@ export default function PhotoBooth() {
     const [stickers, setStickers] = useState([]);
     const [draggingSticker, setDraggingSticker] = useState(null);
     const [selectedSticker, setSelectedSticker] = useState(null);
-    const row = { display: "flex", gap: 40, alignItems: "flex-start" };
-
-    // useEffects
+    const [frameReady, setFrameReady] = useState(false);
 
     // frames
     useEffect(() => {
         if (!selectedFrame) return;
-        const img = new Image();
+        setFrameReady(false);
+
+        const img = document.createElement("img");
         img.src = selectedFrame;
 
         img.onload = () => {
             frameImgRef.current = img;
-            drawCanvas();
-        }
+            setFrameReady(true);
+        };
+        img.onerror = () => setFrameReady(false);
     }, [selectedFrame]);
 
     const drawCanvas = () => {
         const canvas = canvasRef.current;
-        if (!canvas || !frameImgRef.current) return;
+        if (!canvas || !frameImgRef.current || !frameReady) return;
 
         const ctx = canvas.getContext("2d");
 
@@ -81,7 +87,11 @@ export default function PhotoBooth() {
 
             ctx.save();
             ctx.beginPath();
-            ctx.rect(slot.x, slot.y, SLOT_WIDTH, SLOT_HEIGHT);
+            ctx.moveTo(slot.x, slot.y);
+            ctx.lineTo(slot.x + SLOT_WIDTH, slot.y);
+            ctx.lineTo(slot.x + SLOT_WIDTH, slot.y + SLOT_HEIGHT);
+            ctx.lineTo(slot.x, slot.y + SLOT_HEIGHT);
+            ctx.closePath();
             ctx.clip();
             ctx.drawImage(p.img, dx, dy, drawW, drawH);
             ctx.restore();
@@ -98,10 +108,10 @@ export default function PhotoBooth() {
         });
     };
 
-    useEffect(drawCanvas, [photos, stickers, selectedSticker, photoCount]);
+    useEffect(drawCanvas, [photos, stickers, selectedSticker, photoCount, frameReady]);
 
     const handleBack = () => {
-        if (mode == "decorate") {
+        if (mode === "decorate") {
             setMode("photo");
             setCanTakePhoto(false);
             setStickers([]);
@@ -140,11 +150,15 @@ export default function PhotoBooth() {
     };
 
     const takePhotoNow = () => {
-        const src = webcamRef.current.getScreenshot();
+        if (!webcamRef.current) return;
+        // react-webcam exposes getScreenshot() (captured in the JSX render-props below),
+        // request dimensions matching the slots so photos aren't upscaled.
+        const src = webcamRef.current({ width: SLOT_WIDTH, height: SLOT_HEIGHT });
         if (!src) return;
-        const img = new Image();
+        const img = document.createElement("img");
         img.src = src;
         img.onload = () => addPhoto(img);
+        img.onerror = () => {};
     };
 
     const capturePhoto = () => {
@@ -171,14 +185,14 @@ export default function PhotoBooth() {
         const file = e.target.files[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            const img = new Image();
-            img.src = reader.result;
-            img.onload = () => addPhoto(img);
+        const objectUrl = URL.createObjectURL(file);
+        const img = document.createElement("img");
+        img.src = objectUrl;
+        img.onload = () => {
+            addPhoto(img);
+            URL.revokeObjectURL(objectUrl);
         };
-
-        reader.readAsDataURL(file);
+        img.onerror = () => URL.revokeObjectURL(objectUrl);
         e.target.value = "";
     };
 
@@ -257,7 +271,7 @@ export default function PhotoBooth() {
             });
         }
 
-        if (draggingSticker != null && mode === "decorate") {
+        if (draggingSticker !== null && mode === "decorate") {
             setStickers(s => {
                 const u = [...s];
                 u[draggingSticker] = {
@@ -277,10 +291,10 @@ export default function PhotoBooth() {
 
     // add Sticker
     const addSticker = src => {
-        const img = new Image();
+        const img = document.createElement("img");
         img.src = src;
         img.onload = () =>
-            setStickers(s => [...s, {img, x: 400, y: 100}]);
+            setStickers(s => [...s, { img, x: 400, y: 100 }]);
     };
 
     // delete Sticker
@@ -288,10 +302,10 @@ export default function PhotoBooth() {
         const handleKeyDown = e => {
             if (
                 (e.key === "Delete" || e.key === "Backspace") &&
-                selectedSticker != null &&
+                selectedSticker !== null &&
                 mode === "decorate"
             ){
-                setStickers(s => s.filter((_,i) => i != selectedSticker));
+                setStickers(s => s.filter((_, i) => i !== selectedSticker));
                 setSelectedSticker(null);
             }
         };
@@ -303,9 +317,12 @@ export default function PhotoBooth() {
     //download
 
     const downloadPhoto = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
         const a = document.createElement("a");
-        a.href= canvasRef.current.toDataURL("image.png");
-        a.download = "photo-strip.png";
+        a.href = canvas.toDataURL("image/png");
+        a.download = "photo-homie.png";
         a.click();
     };
 
@@ -381,16 +398,23 @@ export default function PhotoBooth() {
                                         {/* Webcam */}
                                         <Webcam
                                             audio={false}
-                                            ref={webcamRef}
                                             screenshotFormat="image/png"
-                                            videoConstraints = {videoConstraints}
-                                            mirrored = {true}
-                                            style={{ width: "100%", borderRadius: 12}}
-                                            />
+                                            videoConstraints={videoConstraints}
+                                            mirrored={true}
+                                            style={{ width: "100%", borderRadius: 12 }}
+                                        >
+                                            {({ getScreenshot }) => {
+                                                // react-webcam exposes getScreenshot() through its render-props
+                                                // API. (Passing `ref` to <Webcam> would override the library's
+                                                // internal ref callback and silently break screenshots.)
+                                                webcamRef.current = getScreenshot;
+                                                return null;
+                                            }}
+                                        </Webcam>
 
                                         {/* Overlay countdown */}
 
-                                        {countdown != null && (
+                                        {countdown !== null && (
                                             <div style = {{
                                                 position: "absolute",
                                                 inset: 0,
@@ -422,7 +446,7 @@ export default function PhotoBooth() {
                                                     Upload
                                                     <input
                                                         type="file"
-                                                        accept="image /*"
+                                                        accept="image/*"
                                                         onChange={uploadPhoto}
                                                         style={{ display: "none"}}
                                                         />

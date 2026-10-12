@@ -1,65 +1,69 @@
-# Getting Started with Create React App
+# Homie Photobooth
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A cute photobooth web app: pick a heart frame, snap (or upload) up to 4 photos, decorate with stickers, then download the finished picture.
+
+## What it does
+
+1. **Pick a frame** – choose one of the heart photo frames.
+2. **Take photos** – a 3-second countdown triggers the webcam capture. You can retake/remove the last photo, or upload an image from your device.
+3. **Decorate** – after 4 photos you enter decorate mode: click a sticker to add it, drag stickers around, select + press `Delete`/`Backspace` to remove.
+4. **Download** – saves the composed frame (photos fitted in the slots + stickers) as a PNG.
 
 ## Available Scripts
 
 In the project directory, you can run:
 
+### `npm install`
+
+Installs dependencies.
+
 ### `npm start`
 
-Runs the app in the development mode.\
+Runs the app in development mode.
 Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+The page reloads when you make changes. You may also see any lint errors in the console.
+
+> Note: the webcam requires HTTPS (or `localhost`) and camera permission.
 
 ### `npm test`
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Launches the test runner in interactive watch mode.
 
 ### `npm run build`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Builds the app for production to the `build` folder.
+It correctly bundles React in production mode and optimizes the build for the best performance. The build is minified and the filenames include hashes — your app is ready to be deployed.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Deploying to Vercel
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+The repo includes a `vercel.json` with the production build command, output directory, and a single-page-app fallback. Vercel detects Create React App from `react-scripts` in `package.json`.
 
-### `npm run eject`
+**Via Git (recommended):**
+1. Push this repository to GitHub and import it into Vercel. Keep **Root Directory** set to `./` because the app files are at the repository root.
+2. Go to [vercel.com/new](https://vercel.com/new), import the repo.
+3. Vercel detects the framework automatically — just click **Deploy**.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+**Via the CLI:**
+```bash
+npm i -g vercel
+vercel --prod
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+The site is served over HTTPS, so the webcam works on deployed builds.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Project structure
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+```
+public/assets/
+  frames/     heart frame overlays (1200x3000 design)
+  stickers/   draggable sticker images
+  fonts/      Cantika Cute Handwriting font
+src/
+  components/Photobooth.js   main photobooth logic + canvas composition
+  App.js                     page shell + header
+  styles/global.css          font face + body styles
+```
 
 ### Deployment
 

@@ -26,7 +26,7 @@ function App() {
           color: "#8c5b4a",
           margin: 0
         }}>
-          JiggleDuo Photobooth
+          Homie Photobooth
         </h1>
       </div>
 
