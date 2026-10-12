@@ -5,7 +5,8 @@ import {
     FRAME_HEIGHT,
     FRAME_WIDTH,
     getCoverGeometry,
-    getFrameSlots
+    getFrameSlots,
+    usesAlphaCutoutMask
 } from "./photoGeometry";
 
 const frameOptions = [
@@ -34,6 +35,7 @@ export default function PhotoBooth() {
     const webcamRef = useRef(null);
     const canvasRef = useRef(null);
     const frameImgRef = useRef(null);
+    const photoMasksRef = useRef([]);
 
     const [selectedFrame, setSelectedFrame] = useState(null);
     const [mode, setMode] = useState("photo");
@@ -54,7 +56,8 @@ export default function PhotoBooth() {
         const frame = frameImgRef.current;
         return getFrameSlots(
             frame ? frame.width : FRAME_WIDTH,
-            frame ? frame.height : FRAME_HEIGHT
+            frame ? frame.height : FRAME_HEIGHT,
+            selectedFrame
         );
     };
 
@@ -62,12 +65,41 @@ export default function PhotoBooth() {
     useEffect(() => {
         if (!selectedFrame) return;
         setFrameReady(false);
+        photoMasksRef.current = [];
 
         const img = document.createElement("img");
         img.src = selectedFrame;
 
         img.onload = () => {
             frameImgRef.current = img;
+            if (usesAlphaCutoutMask(selectedFrame)) {
+                const slotsForMask = getFrameSlots(img.width, img.height, selectedFrame);
+                const source = document.createElement("canvas");
+                source.width = img.width;
+                source.height = img.height;
+                const sourceContext = source.getContext("2d", { willReadFrequently: true });
+                sourceContext.drawImage(img, 0, 0);
+                photoMasksRef.current = slotsForMask.map(slot => {
+                    const mask = document.createElement("canvas");
+                    mask.width = Math.round(slot.width);
+                    mask.height = Math.round(slot.height);
+                    const maskContext = mask.getContext("2d");
+                    const pixels = sourceContext.getImageData(
+                        Math.round(slot.x),
+                        Math.round(slot.y),
+                        mask.width,
+                        mask.height
+                    );
+                    for (let i = 0; i < pixels.data.length; i += 4) {
+                        pixels.data[i] = 255;
+                        pixels.data[i + 1] = 255;
+                        pixels.data[i + 2] = 255;
+                        pixels.data[i + 3] = 255 - pixels.data[i + 3];
+                    }
+                    maskContext.putImageData(pixels, 0, 0);
+                    return mask;
+                });
+            }
             setFrameReady(true);
         };
         img.onerror = () => setFrameReady(false);
@@ -81,7 +113,7 @@ export default function PhotoBooth() {
 
         const frameWidth = frameImgRef.current.width;
         const frameHeight = frameImgRef.current.height;
-        const activeSlots = getFrameSlots(frameWidth, frameHeight);
+        const activeSlots = getFrameSlots(frameWidth, frameHeight, selectedFrame);
         canvas.width = frameWidth;
         canvas.height = frameHeight;
 
@@ -93,6 +125,19 @@ export default function PhotoBooth() {
             const drawH = p.img.height * p.scale;
             const dx = slot.x + p.offsetX;
             const dy = slot.y + p.offsetY;
+
+            const photoMask = photoMasksRef.current[p.slotIndex];
+            if (photoMask) {
+                const photoCanvas = document.createElement("canvas");
+                photoCanvas.width = photoMask.width;
+                photoCanvas.height = photoMask.height;
+                const photoContext = photoCanvas.getContext("2d");
+                photoContext.drawImage(p.img, p.offsetX, p.offsetY, drawW, drawH);
+                photoContext.globalCompositeOperation = "destination-in";
+                photoContext.drawImage(photoMask, 0, 0);
+                ctx.drawImage(photoCanvas, slot.x, slot.y, slot.width, slot.height);
+                return;
+            }
 
             ctx.save();
             ctx.beginPath();
@@ -117,7 +162,7 @@ export default function PhotoBooth() {
         });
     };
 
-    useEffect(drawCanvas, [photos, stickers, selectedSticker, photoCount, frameReady]);
+    useEffect(drawCanvas, [photos, stickers, selectedSticker, photoCount, frameReady, selectedFrame]);
 
     const handleBack = () => {
         if (mode === "decorate") {
@@ -140,7 +185,11 @@ export default function PhotoBooth() {
     const addPhoto = img => {
         if (photoCount >= 4) return;
 
-        const slot = getActiveSlots()[photoCount];
+        const slot = getFrameSlots(
+            frameImgRef.current ? frameImgRef.current.width : FRAME_WIDTH,
+            frameImgRef.current ? frameImgRef.current.height : FRAME_HEIGHT,
+            selectedFrame
+        )[photoCount];
         const { scale, offsetX, offsetY } = getCoverGeometry(
             img.naturalWidth || img.width,
             img.naturalHeight || img.height,

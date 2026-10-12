@@ -1,4 +1,8 @@
-import { getCoverGeometry, getFrameSlots } from "./photoGeometry";
+import {
+    getCoverGeometry,
+    getFrameSlots,
+    usesAlphaCutoutMask
+} from "./photoGeometry";
 
 describe("photo frame geometry", () => {
     test("fits portrait images proportionally into horizontal slots", () => {
@@ -31,5 +35,29 @@ describe("photo frame geometry", () => {
                 expect(slot.y + slot.height).toBeLessThanOrEqual(frameHeight);
             });
         });
+    });
+
+    test("uses centered frame-specific cutout slots and masks for frames 4 and 6", () => {
+        [4, 6].forEach(frameNumber => {
+            const src = `/assets/frames/heart-frame-${frameNumber}.png`;
+            const [firstSlot, ...otherSlots] = getFrameSlots(
+                frameNumber === 4 ? 793 : 1200,
+                frameNumber === 4 ? 1984 : 3000,
+                src
+            );
+
+            expect(usesAlphaCutoutMask(src)).toBe(true);
+            expect(firstSlot.x).toBeGreaterThan(100);
+            expect(firstSlot.x + firstSlot.width).toBeLessThan(1100);
+            expect(firstSlot.y).toBeGreaterThan(100);
+            expect(otherSlots).toHaveLength(3);
+            expect(firstSlot.width).toBeGreaterThan(firstSlot.height);
+            otherSlots.forEach(slot => {
+                expect(slot.y).toBeGreaterThan(firstSlot.y + firstSlot.height);
+                expect(slot.x + slot.width).toBeLessThanOrEqual(frameNumber === 4 ? 793 : 1200);
+                expect(slot.y + slot.height).toBeLessThanOrEqual(frameNumber === 4 ? 1984 : 3000);
+            });
+        });
+        expect(usesAlphaCutoutMask("/assets/frames/heart-frame.png")).toBe(false);
     });
 });
