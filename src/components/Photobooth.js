@@ -1,6 +1,12 @@
 import React, { useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
 import "./Photobooth.css";
+import {
+    FRAME_HEIGHT,
+    FRAME_WIDTH,
+    getCoverGeometry,
+    getFrameSlots
+} from "./photoGeometry";
 
 const frameOptions = [
     "/assets/frames/heart-frame.png",
@@ -18,23 +24,12 @@ const stickerOptions = [
     "/assets/stickers/puppy.png",
 ];
 
-// Request a 953x599 stream from the webcam so screenshots match the frame slots.
+// Prefer a stream near the horizontal frame-slot aspect ratio when available.
 const videoConstraints = {
     width: { ideal: 953 },
     height: { ideal: 599 },
     facingMode: "user"
 };
-const SLOT_WIDTH = 953;
-const SLOT_HEIGHT = 599;
-
-// Each photo slot inside the assembled frame (frame designed at 1200 x 3000).
-const slots = [
-    { x: 123, y: 78 },
-    { x: 123, y: 697 },
-    { x: 123, y: 1286 },
-    { x: 123, y: 1885 }
-];
-
 export default function PhotoBooth() {
     const webcamRef = useRef(null);
     const canvasRef = useRef(null);
@@ -54,6 +49,14 @@ export default function PhotoBooth() {
     const [draggingSticker, setDraggingSticker] = useState(null);
     const [selectedSticker, setSelectedSticker] = useState(null);
     const [frameReady, setFrameReady] = useState(false);
+
+    const getActiveSlots = () => {
+        const frame = frameImgRef.current;
+        return getFrameSlots(
+            frame ? frame.width : FRAME_WIDTH,
+            frame ? frame.height : FRAME_HEIGHT
+        );
+    };
 
     // frames
     useEffect(() => {
@@ -78,13 +81,14 @@ export default function PhotoBooth() {
 
         const frameWidth = frameImgRef.current.width;
         const frameHeight = frameImgRef.current.height;
+        const activeSlots = getFrameSlots(frameWidth, frameHeight);
         canvas.width = frameWidth;
         canvas.height = frameHeight;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         photos.forEach(p => {
-            const slot = slots[p.slotIndex];
+            const slot = activeSlots[p.slotIndex];
             const drawW = p.img.width * p.scale;
             const drawH = p.img.height * p.scale;
             const dx = slot.x + p.offsetX;
@@ -93,15 +97,15 @@ export default function PhotoBooth() {
             ctx.save();
             ctx.beginPath();
             ctx.moveTo(slot.x, slot.y);
-            ctx.lineTo(slot.x + SLOT_WIDTH, slot.y);
-            ctx.lineTo(slot.x + SLOT_WIDTH, slot.y + SLOT_HEIGHT);
-            ctx.lineTo(slot.x, slot.y + SLOT_HEIGHT);
+            ctx.lineTo(slot.x + slot.width, slot.y);
+            ctx.lineTo(slot.x + slot.width, slot.y + slot.height);
+            ctx.lineTo(slot.x, slot.y + slot.height);
             ctx.closePath();
             ctx.clip();
             ctx.drawImage(p.img, dx, dy, drawW, drawH);
             ctx.restore();
         });
-                ctx.drawImage(frameImgRef.current, 0, 0, frameWidth, frameHeight);
+        ctx.drawImage(frameImgRef.current, 0, 0, frameWidth, frameHeight);
 
         stickers.forEach((s, i) => {
             ctx.drawImage(s.img, s.x, s.y, 150, 150);
@@ -136,11 +140,13 @@ export default function PhotoBooth() {
     const addPhoto = img => {
         if (photoCount >= 4) return;
 
-        const scale = Math.max(SLOT_WIDTH / img.width, SLOT_HEIGHT / img.height);
-        const drawW = img.width * scale;
-        const drawH = img.height * scale;
-        const offsetX = (SLOT_WIDTH - drawW) / 2;
-        const offsetY = (SLOT_HEIGHT - drawH) / 2;
+        const slot = getActiveSlots()[photoCount];
+        const { scale, offsetX, offsetY } = getCoverGeometry(
+            img.naturalWidth || img.width,
+            img.naturalHeight || img.height,
+            slot.width,
+            slot.height
+        );
 
         setPhotos(p => [
             ...p,
@@ -158,9 +164,8 @@ export default function PhotoBooth() {
 
     const takePhotoNow = () => {
         if (!webcamRef.current) return;
-        // react-webcam exposes getScreenshot() (captured in the JSX render-props below),
-        // request dimensions matching the slots so photos aren't upscaled.
-        const src = webcamRef.current({ width: SLOT_WIDTH, height: SLOT_HEIGHT });
+        // Keep the camera's intrinsic dimensions so portrait captures are not stretched.
+        const src = webcamRef.current();
         if (!src) return;
         const img = document.createElement("img");
         img.src = src;
@@ -225,7 +230,7 @@ export default function PhotoBooth() {
         if (mode === "photo") {
             for (let i = photos.length - 1; i >= 0; i--) {
                 const p = photos[i];
-                const slot = slots[p.slotIndex];
+                const slot = getActiveSlots()[p.slotIndex];
                 const w = p.img.width * p.scale;
                 const h = p.img.height * p.scale;
 
@@ -266,14 +271,14 @@ export default function PhotoBooth() {
             setPhotos(prev => {
                 const updated = [...prev];
                 const p = updated[draggingPhoto];
-                const slot = slots[p.slotIndex];
+                const slot = getActiveSlots()[p.slotIndex];
                 const w = p.img.width * p.scale;
                 const h = p.img.height * p.scale;
 
                 p.offsetX = x - slot.x - dragOffset.x;
                 p.offsetY = y - slot.y - dragOffset.y;
-                p.offsetX = Math.min(Math.max(p.offsetX, SLOT_WIDTH - w), 0);
-                p.offsetY = Math.min(Math.max(p.offsetY, SLOT_HEIGHT - h),0);
+                p.offsetX = Math.min(Math.max(p.offsetX, slot.width - w), 0);
+                p.offsetY = Math.min(Math.max(p.offsetY, slot.height - h), 0);
 
                 return updated;
             });
@@ -465,7 +470,7 @@ export default function PhotoBooth() {
                                     <div className="photo-actions" style={{ marginTop: 16, display: "flex", gap: 12 }}>
                                         {canTakePhoto && (
                                             <>
-                                                <button style={buttonStyle} onClick={capturePhoto}>
+                                                <button style={buttonStyle} onClick={capturePhoto} disabled={!frameReady}>
                                                     Take Photo
                                                 </button>
                                                 <label style={{...buttonStyle, cursor: "pointer"}}>
@@ -473,6 +478,7 @@ export default function PhotoBooth() {
                                                     <input
                                                         type="file"
                                                         accept="image/*"
+                                                        disabled={!frameReady}
                                                         onChange={uploadPhoto}
                                                         style={{ display: "none"}}
                                                         />

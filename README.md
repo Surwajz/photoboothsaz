@@ -7,7 +7,7 @@ A cute photobooth web app: pick a heart frame, snap (or upload) up to 4 photos, 
 1. **Pick a frame** – choose one of the heart photo frames.
 2. **Take photos** – a 3-second countdown triggers the webcam capture. You can retake/remove the last photo, or upload an image from your device.
 3. **Decorate** – after 4 photos you enter decorate mode: click a sticker to add it, drag stickers around, select + press `Delete`/`Backspace` to remove.
-4. **Download** – saves the composed frame (photos fitted in the slots + stickers) as a PNG.
+4. **Download** – saves the composed frame (photos proportionally center-cropped to the horizontal slots + stickers) as a PNG. The displayed canvas is the same image used for download.
 
 ## Available Scripts
 

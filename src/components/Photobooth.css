@@ -2,7 +2,14 @@
   display: none;
 }
 
-@media (max-width: 760px) {
+.camera-preview video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 953 / 599;
+  object-fit: cover;
+}
+
+ @media (max-width: 760px) {
   .photobooth-shell {
     box-sizing: border-box;
     width: 100%;
@@ -78,13 +85,6 @@
     max-width: 480px;
     overflow: hidden;
     border-radius: 12px;
-  }
-
-  .camera-preview video {
-    display: block;
-    width: 100%;
-    aspect-ratio: 953 / 599;
-    object-fit: cover;
   }
 
   .photo-actions {
